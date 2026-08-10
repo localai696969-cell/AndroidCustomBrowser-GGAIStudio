@@ -20,11 +20,26 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install Dependencies
-        run: npm install
-
       - name: Build Web Application
-        run: npm run build
+        run: |
+          if [ -f "package.json" ]; then
+            echo "package.json found at root level"
+            npm install
+            npm run build
+          else
+            TARGET_DIR=$(dirname $(find . -name "package.json" -not -path "*/node_modules/*" | head -n 1))
+            if [ -n "$TARGET_DIR" ] && [ -f "$TARGET_DIR/package.json" ]; then
+              echo "package.json found in directory: $TARGET_DIR"
+              cd "$TARGET_DIR"
+              npm install
+              npm run build
+              mkdir -p "$GITHUB_WORKSPACE/dist"
+              cp -r dist/* "$GITHUB_WORKSPACE/dist/" 2>/dev/null || true
+            else
+              echo "CRITICAL ERROR: package.json not found in repository."
+              exit 1
+            fi
+          fi
 
       - name: Upload Web Build Artifact
         uses: actions/upload-artifact@v4
